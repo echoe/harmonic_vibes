@@ -3,6 +3,8 @@
 A MIDI-output step sequencer inspired by the Moog Subharmonicon, with **multiple independent playheads** running over a shared pitch sequence, each with its own step count and rhythm divisor.
 All text here is written by Claude. Claude is taking the wheel here and I'm basically just sharing it.
 
+To be clear this is not ready for use yet. I want to make some tweaks to the actual subharmonics you can choose, and every time it opens it opens in a minimizd mode that makes selecting the subharmonics impossible unless you stretch out the window by hand. Also it just says 'Multihead Sequencer' on it lol. But I figure I'll add this, and work on it, and probably get it to a point where I'm OK using it in front of people this weekend.
+
 ---
 
 ## Concept
