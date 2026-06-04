@@ -29,28 +29,40 @@ static const juce::StringArray kRhythmNames {
     "Dotted 8th", "8th", "8th Trip", "16th", "16th Trip", "32nd"
 };
 
-// Max subharmonic divisor (1 = unison, 16 = 1/16th frequency ≈ 4 octaves down)
-static constexpr int MAX_SUBHARMONIC = 16;
+// Subharmonic choices: fractional (superharmonics) then integer divisors.
+// Values < 1 transpose UP (e.g. 0.5 = one octave up = frequency * 2).
+// Values > 1 transpose DOWN (e.g. 2 = one octave down = frequency / 2).
+// Semitone shift = 12 * log2(1/value) = -12 * log2(value)
+static const juce::StringArray kSubharmonicNames {
+    "1/16", "1/8", "1/4", "1/2",
+    "1 (Root)",
+    "2", "3", "4", "5", "6", "7", "8",
+    "9", "10", "11", "12", "13", "14", "15", "16"
+};
+// Corresponding float divisor values (frequency divided by this)
+static constexpr std::array<float, 20> kSubharmonicValues {
+    0.0625f, 0.125f, 0.25f, 0.5f,   // fractional: freq goes UP
+    1.0f,                             // root
+    2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
+    9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f
+};
+static constexpr int NUM_SUBHARMONIC_CHOICES = 20;
+static constexpr int DEFAULT_SUBHARMONIC_IDX = 4; // "1 (Root)"
 
 //==============================================================================
 struct Playhead
 {
-    // APVTS parameter pointers
     std::atomic<float>* numSteps      { nullptr };
     std::atomic<float>* volume        { nullptr };
     std::atomic<float>* active        { nullptr };
-    std::atomic<float>* subharmonic   { nullptr }; // 1..16 (playhead 0 ignores this)
+    std::atomic<float>* subharmonic   { nullptr }; // index into kSubharmonicValues
 
-    // One bool subscription per rhythm slot
     std::array<std::atomic<float>*, NUM_RHYTHMS> slotActive { nullptr,nullptr,nullptr,nullptr };
 
-    // One accumulator per rhythm slot — independent clocks
-    std::array<double, NUM_RHYTHMS> accumulators    { 0.0, 0.0, 0.0, 0.0 };
-    // Per-slot note tracking — each slot holds its own note independently
-    std::array<int,    NUM_RHYTHMS> slotLastNote     { -1, -1, -1, -1 };
-    std::array<double, NUM_RHYTHMS> slotNoteOffCountdown { -1.0, -1.0, -1.0, -1.0 };
+    std::array<double, NUM_RHYTHMS> accumulators         { 0.0, 0.0, 0.0, 0.0 };
+    std::array<int,    NUM_RHYTHMS> slotLastNote         { -1,  -1,  -1,  -1  };
+    std::array<double, NUM_RHYTHMS> slotNoteOffCountdown { -1.0,-1.0,-1.0,-1.0 };
 
-    // Independent pitch index and step — not shared with other playheads
     int pitchIndex { 0 };
     int stepIndex  { 0 };
 
@@ -114,9 +126,7 @@ public:
     std::array<std::atomic<float>*, NUM_RHYTHMS> rhythmParams {};
     std::array<Playhead, NUM_PLAYHEADS>           playheads;
 
-    // Per-playhead current step (for UI LEDs)
     std::array<std::atomic<int>, NUM_PLAYHEADS>  currentSteps;
-    // Per-playhead current pitch index (for UI highlighting)
     std::array<std::atomic<int>, NUM_PLAYHEADS>  currentPitchIndices;
 
     std::atomic<float>* collisionMode { nullptr };
@@ -128,10 +138,9 @@ private:
     double getHostBpm() const;
     double samplesPerSlot (std::size_t r) const;
 
-    // Apply subharmonic transposition: returns MIDI note shifted by the
-    // interval corresponding to frequency / divisor.
-    // freq/N semitones = -12 * log2(N), rounded to nearest semitone.
-    static int applySubharmonic (int midiNote, int divisor);
+    // Shift midiNote by the interval for frequency/divisorValue.
+    // divisorValue < 1 → pitch goes UP, > 1 → pitch goes DOWN.
+    static int applySubharmonic (int midiNote, float divisorValue);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiheadSequencerAudioProcessor)
 };

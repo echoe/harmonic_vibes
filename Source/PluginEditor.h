@@ -6,19 +6,47 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-inline juce::Colour playheadColour (std::size_t i)
+// Shared mutable colour table — all components read from here so a colour
+// change is reflected everywhere immediately on the next repaint/refresh.
+struct PlayheadColours
 {
-    constexpr std::array<juce::uint32, 4> vals {
-        0xFFE94560u,  // coral red
-        0xFF00B4D8u,  // cyan
-        0xFF90E0EFu,  // light blue
-        0xFFFFB703u,  // amber
+    static PlayheadColours& get()
+    {
+        static PlayheadColours instance;
+        return instance;
+    }
+
+    juce::Colour colour (int ph) const
+    {
+	    return colours[static_cast<std::size_t>(juce::jlimit(0, NUM_PLAYHEADS - 1, ph))];
+    }
+
+    void set (int ph, juce::Colour c)
+    {
+	    colours[static_cast<std::size_t>(juce::jlimit (0, NUM_PLAYHEADS - 1, ph))] = c;
+    }
+
+private:
+    // Default palette
+    std::array<juce::Colour, NUM_PLAYHEADS> colours {
+        juce::Colour (0xFFE94560u),  // coral red
+        juce::Colour (0xFF00B4D8u),  // cyan
+        juce::Colour (0xFF90E0EFu),  // light blue
+        juce::Colour (0xFFFFB703u),  // amber
     };
-    return juce::Colour (vals[i % 4]);
+};
+
+// Convenience free function
+inline juce::Colour playheadColour (int ph)
+{
+    return PlayheadColours::get().colour (ph);
+}
+inline juce::Colour playheadColour (std::size_t ph)
+{
+    return playheadColour ((int) ph);
 }
 
 //==============================================================================
-// Pitch step: shows up to 4 coloured dots for each playhead currently on it
 class PitchStepComponent : public juce::Component
 {
 public:
@@ -27,8 +55,6 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
-
-    // activePlayheads: bitmask of which playheads are currently on this step
     void setActivePlayheads (int bitmask);
 
 private:
@@ -43,19 +69,15 @@ private:
 };
 
 //==============================================================================
-// Rhythm slot: knob + 4 toggle buttons (any combination allowed)
 class RhythmSlotComponent : public juce::Component
 {
 public:
-    RhythmSlotComponent (int slotIndex,
-                         juce::AudioProcessorValueTreeState& apvts);
+    RhythmSlotComponent (int slotIndex, juce::AudioProcessorValueTreeState& apvts);
     ~RhythmSlotComponent() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
-
-    // Refresh toggle states from APVTS (call from timer)
-    void refreshButtons();
+    void refreshButtons();   // sync button colours from APVTS + PlayheadColours
 
 private:
     int slotIndex;
@@ -71,27 +93,31 @@ private:
 };
 
 //==============================================================================
-// Playhead row: LEDs + steps + volume + subharmonic knob (PH2–4 only)
 class PlayheadRowComponent : public juce::Component
 {
 public:
-    PlayheadRowComponent (int phIndex, juce::AudioProcessorValueTreeState& apvts);
+    PlayheadRowComponent (int phIndex,
+                          juce::AudioProcessorValueTreeState& apvts,
+                          std::function<void(int)> colourButtonClicked);
     ~PlayheadRowComponent() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
     void setCurrentStep (int step, int numSteps);
+    // Call after a colour change to re-tint all child controls
+    void refreshColour();
 
 private:
     int phIndex;
     int currentStep { 0 };
     int activeSteps { 8 };
 
+    juce::TextButton   colourButton;   // click to open colour picker
     juce::Label        nameLabel;
     juce::ToggleButton activeButton;
     juce::Slider       stepsSlider;
     juce::Slider       volumeSlider;
-    juce::Slider       subharmonicKnob;  // hidden for PH1 (phIndex == 0)
+    juce::Slider       subharmonicKnob;
     juce::Label        stepsLabel;
     juce::Label        volLabel;
     juce::Label        subLabel;
@@ -102,6 +128,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> subAttach;
 
     std::array<juce::Rectangle<float>, MAX_STEPS> ledRects;
+
+    void applyColourToControls (juce::Colour col);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PlayheadRowComponent)
 };
@@ -114,18 +142,19 @@ public:
     explicit MultiheadSequencerAudioProcessorEditor (MultiheadSequencerAudioProcessor&);
     ~MultiheadSequencerAudioProcessorEditor() override;
 
+    void onColourChanged (int playheadIndex, juce::Colour newColour);
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
     void timerCallback() override;
+    void openColourPicker (int playheadIndex);
 
     MultiheadSequencerAudioProcessor& processorRef;
 
-    juce::Label   titleLabel;
-
-    juce::Slider  bpmSlider;
-    juce::Label   bpmLabel;
+    juce::Label      titleLabel;
+    juce::Slider     bpmSlider;
+    juce::Label      bpmLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> bpmAttach;
 
     juce::TextButton collisionButton;

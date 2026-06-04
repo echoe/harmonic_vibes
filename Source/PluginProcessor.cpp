@@ -12,6 +12,7 @@ MultiheadSequencerAudioProcessor::createParameterLayout()
         "bpm", "BPM",
         juce::NormalisableRange<float> (20.f, 300.f, 0.01f, 1.f), 120.f));
 
+    // Collision mode: false (0) = ONE note wins, true (1) = ALL notes play.
     layout.add (std::make_unique<juce::AudioParameterBool> (
         "collisionMode", "Collision Mode", false));
 
@@ -34,25 +35,25 @@ MultiheadSequencerAudioProcessor::createParameterLayout()
         const juce::String n = "PH" + juce::String (ph + 1);
 
         layout.add (std::make_unique<juce::AudioParameterInt> (
-            p + "steps",  n + " Steps",  1, MAX_STEPS, 8));
+            p + "steps",  n + " Steps", 1, MAX_STEPS, 8));
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             p + "volume", n + " Volume",
             juce::NormalisableRange<float> (0.f, 1.f, 0.01f), 0.8f));
         layout.add (std::make_unique<juce::AudioParameterBool> (
             p + "active", n + " Active", ph == 0));
 
-        // Subharmonic divisor: 1 = root pitch, 2 = 1 octave down, 3 = oct+5th, …
-        // Playhead 0 is the "main" voice so its subharmonic is fixed at 1 (no param needed
-        // but we add it anyway for consistency, just won't display it in the UI).
-        layout.add (std::make_unique<juce::AudioParameterInt> (
-            p + "subharmonic", n + " Subharmonic", 1, MAX_SUBHARMONIC, 1));
+        // Subharmonic: index into kSubharmonicNames / kSubharmonicValues
+        // Default = 4 = "1 (Root)" for all playheads
+        layout.add (std::make_unique<juce::AudioParameterChoice> (
+            p + "subharmonic", n + " Subharmonic",
+            kSubharmonicNames, DEFAULT_SUBHARMONIC_IDX));
 
-        // Rhythm slot subscriptions
+        // Rhythm slot subscriptions (bool per slot)
         for (int r = 0; r < NUM_RHYTHMS; ++r)
             layout.add (std::make_unique<juce::AudioParameterBool> (
                 p + "slot" + juce::String (r),
                 n + " Slot " + juce::String (r + 1),
-                ph == r));   // default: each playhead starts on its own slot
+                ph == r));
     }
 
     return layout;
@@ -145,12 +146,14 @@ double MultiheadSequencerAudioProcessor::samplesPerSlot (std::size_t r) const
     return qn / (double) kRhythmDivisors[(std::size_t) idx];
 }
 
-int MultiheadSequencerAudioProcessor::applySubharmonic (int midiNote, int divisor)
+int MultiheadSequencerAudioProcessor::applySubharmonic (int midiNote, float divisorValue)
 {
-    if (divisor <= 1) return midiNote;
-    // Frequency / N  →  pitch shifted down by 12 * log2(N) semitones
-    const int semitones = (int) std::round (12.0 * std::log2 ((double) divisor));
-    return juce::jlimit (0, 127, midiNote - semitones);
+    if (divisorValue <= 0.f || juce::approximatelyEqual(divisorValue, 1.f)) return midiNote;
+    // Semitone shift = -12 * log2(divisorValue)
+    // divisorValue > 1 → negative shift (pitch down)
+    // divisorValue < 1 → positive shift (pitch up)
+    const float semitones = -12.f * std::log2 (divisorValue);
+    return juce::jlimit (0, 127, midiNote + (int) std::round (semitones));
 }
 
 //==============================================================================
@@ -164,9 +167,9 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
     const int numSamples = buffer.getNumSamples();
     if (numSamples <= 0) return;
 
+    // collisionMode param: 0 = ONE (suppress simultaneous duplicates), 1 = ALL
     const bool allNotes = (collisionMode != nullptr && collisionMode->load() >= 0.5f);
 
-    // Pre-compute samples-per-slot once per block
     std::array<double, NUM_RHYTHMS> sps;
     for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
         sps[r] = samplesPerSlot (r);
@@ -182,7 +185,6 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
         if (head.active->load() < 0.5f)
         {
-            // Release any notes held by each slot
             for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
             {
                 if (head.slotLastNote[r] >= 0)
@@ -197,13 +199,19 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
         const int numSteps = juce::jlimit (1, MAX_STEPS, (int) head.numSteps->load());
         const int vel      = juce::jlimit (1, 127, (int) (head.volume->load() * 100.f) + 27);
-        const int subDiv   = head.subharmonic != nullptr
-                             ? juce::jlimit (1, MAX_SUBHARMONIC, (int) head.subharmonic->load())
-                             : 1;
+
+        // Resolve subharmonic: choice index → float divisor value
+        float subDivisor = 1.f;
+        if (head.subharmonic != nullptr)
+        {
+            int subIdx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1,
+                                       (int) head.subharmonic->load());
+            subDivisor = kSubharmonicValues[(std::size_t) subIdx];
+        }
 
         for (int s = 0; s < numSamples; ++s)
         {
-            // Per-slot note-off countdowns — each slot tracks its own held note
+            // Per-slot note-off countdowns
             for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
             {
                 if (head.slotNoteOffCountdown[r] >= 0.0)
@@ -217,11 +225,9 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
                 }
             }
 
-            // Per-slot accumulators — each slot fires completely independently
+            // Per-slot accumulators
             for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
             {
-                // Always advance accumulator for phase continuity,
-                // even when unsubscribed, so enabling a slot later stays in sync
                 head.accumulators[r] += 1.0;
 
                 const bool subscribed = (head.slotActive[r] != nullptr
@@ -239,7 +245,6 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
                     if (!subscribed) continue;
 
-                    // Each slot advances the playhead's shared step + pitch index
                     head.stepIndex  = (head.stepIndex  + 1) % numSteps;
                     head.pitchIndex = (head.pitchIndex + 1) % (int) NUM_PITCHES;
                     currentSteps[ph].store (head.stepIndex);
@@ -248,9 +253,8 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
                     if (pitchParams[(std::size_t) head.pitchIndex] == nullptr) continue;
                     const int rawNote  = juce::jlimit (0, 127,
                                              (int) pitchParams[(std::size_t) head.pitchIndex]->load());
-                    const int midiNote = applySubharmonic (rawNote, subDiv);
+                    const int midiNote = applySubharmonic (rawNote, subDivisor);
 
-                    // Kill this slot's previous note before firing a new one
                     if (head.slotLastNote[r] >= 0)
                     {
                         pendingEvents.push_back ({ s, head.slotLastNote[r], 0, (int) ph });
@@ -265,22 +269,35 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
         }
     }
 
-    // Sort by timestamp (stable → note-offs before note-ons at same position)
+    // Sort: stable keeps note-offs before note-ons at the same timestamp
     std::stable_sort (pendingEvents.begin(), pendingEvents.end(),
                       [] (const PendingEvent& a, const PendingEvent& b) noexcept
                       { return a.samplePos < b.samplePos; });
 
-    // ONE mode: suppress all but the first note-on per sample position
+    // ONE mode: among note-ons at the same sample position, keep only the first.
+    // Note-offs are never suppressed — they must always go through.
     if (!allNotes)
     {
-        int  lastOnSample     = -1;
+        int  lastOnSample     = -2;
         bool seenOnThisSample = false;
+
         for (auto& ev : pendingEvents)
         {
-            if (ev.velocity <= 0) { seenOnThisSample = false; continue; }
-            if (ev.samplePos != lastOnSample) { lastOnSample = ev.samplePos; seenOnThisSample = false; }
-            if (seenOnThisSample) ev.velocity = -1;
-            else seenOnThisSample = true;
+            if (ev.velocity <= 0)
+            {
+                // note-off: don't reset seenOnThisSample, just pass through
+                continue;
+            }
+            // It's a note-on
+            if (ev.samplePos != lastOnSample)
+            {
+                lastOnSample      = ev.samplePos;
+                seenOnThisSample  = false;
+            }
+            if (seenOnThisSample)
+                ev.velocity = -1;   // suppress this note-on
+            else
+                seenOnThisSample = true;
         }
     }
 
