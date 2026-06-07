@@ -7,7 +7,7 @@
 //==============================================================================
 static constexpr int MAX_STEPS          = 16;
 static constexpr int NUM_PLAYHEADS      = 4;
-static constexpr int NUM_PITCHES        = 8;
+static constexpr int NUM_PITCHES        = 16;
 static constexpr int NUM_RHYTHMS        = 4;
 static constexpr int NUM_RHYTHM_CHOICES = 14;
 
@@ -62,6 +62,9 @@ struct Playhead
     std::atomic<float>* subharmonic   { nullptr }; // index into kSubharmonicValues
 
     std::array<std::atomic<float>*, NUM_RHYTHMS> slotActive { nullptr,nullptr,nullptr,nullptr };
+
+    // Per-step enabled flags (atomic pointers into APVTS)
+    std::array<std::atomic<float>*, MAX_STEPS> stepEnabled {};
 
     std::array<double, NUM_RHYTHMS> accumulators         { 0.0, 0.0, 0.0, 0.0 };
     std::array<int,    NUM_RHYTHMS> slotLastNote         { -1,  -1,  -1,  -1  };

@@ -2,20 +2,22 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
-static const juce::Colour kBackground { 0xFF1A1A2E };
-static const juce::Colour kSurface    { 0xFF16213E };
-static const juce::Colour kAccent     { 0xFF0F3460 };
-static const juce::Colour kHighlight  { 0xFFE94560 };
-static const juce::Colour kText       { 0xFFEEEEEE };
-static const juce::Colour kDim        { 0xFF888899 };
+// Theme-aware colour helpers — read from ThemeColours singleton
+static juce::Colour BG()      { return theme().background; }
+static juce::Colour SURF()    { return theme().surface; }
+static juce::Colour ACC()     { return theme().accent; }
+static juce::Colour TXT()     { return theme().text(); }
+static juce::Colour DIM()     { return theme().dim(); }
+// kHighlight stays as the title accent — we keep it independent
+static const juce::Colour kHighlight { 0xFFE94560u };
 
 static void styleRotary (juce::Slider& s, juce::Colour fill)
 {
     s.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     s.setColour (juce::Slider::rotarySliderFillColourId,    fill);
-    s.setColour (juce::Slider::rotarySliderOutlineColourId, kAccent);
-    s.setColour (juce::Slider::thumbColourId,               kText);
-    s.setColour (juce::Slider::textBoxTextColourId,         kText);
+    s.setColour (juce::Slider::rotarySliderOutlineColourId, ACC());
+    s.setColour (juce::Slider::thumbColourId,               TXT());
+    s.setColour (juce::Slider::textBoxTextColourId,         TXT());
     s.setColour (juce::Slider::textBoxBackgroundColourId,   juce::Colours::transparentBlack);
     s.setColour (juce::Slider::textBoxOutlineColourId,      juce::Colours::transparentBlack);
 }
@@ -25,8 +27,8 @@ static void styleHorizSlider (juce::Slider& s, juce::Colour col)
     s.setSliderStyle (juce::Slider::LinearHorizontal);
     s.setColour (juce::Slider::trackColourId,               col.withAlpha (0.8f));
     s.setColour (juce::Slider::thumbColourId,               col);
-    s.setColour (juce::Slider::backgroundColourId,          kAccent);
-    s.setColour (juce::Slider::textBoxTextColourId,         kText);
+    s.setColour (juce::Slider::backgroundColourId,          ACC());
+    s.setColour (juce::Slider::textBoxTextColourId,         TXT());
     s.setColour (juce::Slider::textBoxBackgroundColourId,   juce::Colours::transparentBlack);
     s.setColour (juce::Slider::textBoxOutlineColourId,      juce::Colours::transparentBlack);
 }
@@ -39,7 +41,7 @@ PitchStepComponent::PitchStepComponent (int index, juce::AudioProcessorValueTree
 {
     indexLabel.setText (juce::String (index + 1), juce::dontSendNotification);
     indexLabel.setFont (juce::Font (juce::FontOptions().withHeight (11.0f).withStyle ("Bold")));
-    indexLabel.setColour (juce::Label::textColourId, kDim);
+    indexLabel.setColour (juce::Label::textColourId, DIM());
     indexLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (indexLabel);
 
@@ -47,9 +49,9 @@ PitchStepComponent::PitchStepComponent (int index, juce::AudioProcessorValueTree
     pitchSlider.setRange (0, 127, 1);
     pitchSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 36, 14);
     pitchSlider.setColour (juce::Slider::trackColourId,             kHighlight);
-    pitchSlider.setColour (juce::Slider::thumbColourId,             kText);
-    pitchSlider.setColour (juce::Slider::backgroundColourId,        kAccent);
-    pitchSlider.setColour (juce::Slider::textBoxTextColourId,       kText);
+    pitchSlider.setColour (juce::Slider::thumbColourId,             TXT());
+    pitchSlider.setColour (juce::Slider::backgroundColourId,        ACC());
+    pitchSlider.setColour (juce::Slider::textBoxTextColourId,       TXT());
     pitchSlider.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
     pitchSlider.setColour (juce::Slider::textBoxOutlineColourId,    juce::Colours::transparentBlack);
     addAndMakeVisible (pitchSlider);
@@ -69,10 +71,10 @@ void PitchStepComponent::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat().reduced (2.f);
 
-    g.setColour (activePlayheadMask != 0 ? kSurface.brighter (0.08f) : kSurface);
+    g.setColour (activePlayheadMask != 0 ? SURF().brighter (0.08f) : SURF());
     g.fillRoundedRectangle (b, 6.f);
 
-    juce::Colour borderCol = kAccent;
+    juce::Colour borderCol = ACC();
     float borderW = 1.f;
     for (int ph = 0; ph < NUM_PLAYHEADS; ++ph)
     {
@@ -120,7 +122,7 @@ RhythmSlotComponent::RhythmSlotComponent (int idx, juce::AudioProcessorValueTree
 {
     slotLabel.setText ("R" + juce::String (idx + 1), juce::dontSendNotification);
     slotLabel.setFont (juce::Font (juce::FontOptions().withHeight (12.0f).withStyle ("Bold")));
-    slotLabel.setColour (juce::Label::textColourId, kDim);
+    slotLabel.setColour (juce::Label::textColourId, DIM());
     slotLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (slotLabel);
 
@@ -136,8 +138,8 @@ RhythmSlotComponent::RhythmSlotComponent (int idx, juce::AudioProcessorValueTree
         auto& btn = phButtons[(std::size_t) ph];
         btn.setButtonText ("P" + juce::String (ph + 1));
         btn.setClickingTogglesState (true);
-        btn.setColour (juce::TextButton::textColourOffId, kText);
-        btn.setColour (juce::TextButton::textColourOnId,  kBackground);
+        btn.setColour (juce::TextButton::textColourOffId, TXT());
+        btn.setColour (juce::TextButton::textColourOnId,  BG());
         btn.onClick = [this, ph]
         {
             const juce::String id = "ph" + juce::String (ph)
@@ -153,6 +155,14 @@ RhythmSlotComponent::RhythmSlotComponent (int idx, juce::AudioProcessorValueTree
 
 RhythmSlotComponent::~RhythmSlotComponent() {}
 
+void RhythmSlotComponent::applyTheme()
+{
+    slotLabel.setColour (juce::Label::textColourId, DIM());
+    styleRotary (rhythmKnob, kHighlight);
+    refreshButtons();
+    repaint();
+}
+
 void RhythmSlotComponent::refreshButtons()
 {
     for (int ph = 0; ph < NUM_PLAYHEADS; ++ph)
@@ -165,17 +175,19 @@ void RhythmSlotComponent::refreshButtons()
         btn.setToggleState (on, juce::dontSendNotification);
         const auto col = playheadColour (ph);
         btn.setColour (juce::TextButton::buttonColourId,
-                       on ? col.withAlpha (0.85f) : kAccent);
+                       on ? col.withAlpha (0.85f) : ACC());
         btn.setColour (juce::TextButton::buttonOnColourId, col);
+        btn.setColour (juce::TextButton::textColourOffId, TXT());
+        btn.setColour (juce::TextButton::textColourOnId,  BG());
     }
 }
 
 void RhythmSlotComponent::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat().reduced (2.f);
-    g.setColour (kSurface);
+    g.setColour (SURF());
     g.fillRoundedRectangle (b, 8.f);
-    g.setColour (kAccent);
+    g.setColour (ACC());
     g.drawRoundedRectangle (b, 8.f, 1.f);
 }
 
@@ -191,6 +203,100 @@ void RhythmSlotComponent::resized()
     for (int ph = 0; ph < NUM_PLAYHEADS; ++ph)
         phButtons[(std::size_t) ph].setBounds (
             b.withWidth (btnW).withX (b.getX() + ph * btnW).reduced (2, 0));
+}
+
+//==============================================================================
+// StepLedStrip — clickable per-step enable/disable
+//==============================================================================
+StepLedStrip::StepLedStrip (int phIdx, juce::AudioProcessorValueTreeState& apvts_)
+    : phIndex (phIdx), apvts (apvts_)
+{
+    stepEnabled.fill (true);
+    setRepaintsOnMouseActivity (false);
+}
+
+juce::Rectangle<float> StepLedStrip::stepRect (int s) const
+{
+    const float w = (float) getWidth();
+    const float h = (float) getHeight();
+    const float ledW = w / (float) MAX_STEPS;
+    return juce::Rectangle<float> (s * ledW, 0.f, ledW, h).reduced (2.f, 1.f);
+}
+
+void StepLedStrip::paint (juce::Graphics& g)
+{
+    const auto col = playheadColour (phIndex);
+    for (int s = 0; s < MAX_STEPS; ++s)
+    {
+        auto cell = stepRect (s);
+        const bool inRange  = (s < activeSteps);
+        const bool active   = inRange && (s == currentStep);
+        const bool enabled  = stepEnabled[(std::size_t) s];
+
+        if (active)
+        {
+            g.setColour (col);
+        }
+        else if (inRange && enabled)
+        {
+            g.setColour (col.withAlpha (0.30f));
+        }
+        else if (inRange && !enabled)
+        {
+            // Muted step: dim X mark
+            g.setColour (ACC().withAlpha (0.5f));
+            g.fillRoundedRectangle (cell, 3.f);
+            g.setColour (col.withAlpha (0.20f));
+            g.drawLine (cell.getX() + 3, cell.getY() + 3,
+                        cell.getRight() - 3, cell.getBottom() - 3, 1.f);
+            g.drawLine (cell.getRight() - 3, cell.getY() + 3,
+                        cell.getX() + 3, cell.getBottom() - 3, 1.f);
+            continue;
+        }
+        else
+        {
+            g.setColour (ACC().withAlpha (0.35f));
+        }
+        g.fillRoundedRectangle (cell, 3.f);
+    }
+}
+
+void StepLedStrip::mouseDown (const juce::MouseEvent& e)
+{
+    const float ledW = (float) getWidth() / (float) MAX_STEPS;
+    const int s = juce::jlimit (0, MAX_STEPS - 1, (int) (e.position.x / ledW));
+
+    const juce::String paramId = "ph" + juce::String (phIndex)
+                                + "_step" + juce::String (s);
+    if (auto* param = apvts.getParameter (paramId))
+    {
+        const bool current = (apvts.getRawParameterValue (paramId) != nullptr
+                              && apvts.getRawParameterValue (paramId)->load() >= 0.5f);
+        param->setValueNotifyingHost (current ? 0.f : 1.f);
+        stepEnabled[(std::size_t) s] = !current;
+    }
+    repaint();
+}
+
+void StepLedStrip::setCurrentStep (int step, int numSteps)
+{
+    if (currentStep != step || activeSteps != numSteps)
+    {
+        currentStep = step;
+        activeSteps = numSteps;
+        repaint();
+    }
+}
+
+void StepLedStrip::refreshFromApvts()
+{
+    for (int s = 0; s < MAX_STEPS; ++s)
+    {
+        const juce::String id = "ph" + juce::String (phIndex) + "_step" + juce::String (s);
+        auto* raw = apvts.getRawParameterValue (id);
+        stepEnabled[(std::size_t) s] = (raw == nullptr || raw->load() >= 0.5f);
+    }
+    repaint();
 }
 
 //==============================================================================
@@ -220,7 +326,7 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     activeButton.setButtonText ("ON");
     activeButton.setColour (juce::ToggleButton::textColourId,         col);
     activeButton.setColour (juce::ToggleButton::tickColourId,         col);
-    activeButton.setColour (juce::ToggleButton::tickDisabledColourId, kDim);
+    activeButton.setColour (juce::ToggleButton::tickDisabledColourId, DIM());
     addAndMakeVisible (activeButton);
     activeAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         apvts, prefix + "active", activeButton);
@@ -229,7 +335,7 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     {
         l.setText (t, juce::dontSendNotification);
         l.setFont (juce::Font (juce::FontOptions().withHeight (9.0f).withStyle ("Bold")));
-	l.setColour (juce::Label::textColourId, kDim);
+        l.setColour (juce::Label::textColourId, DIM());
         l.setJustificationType (juce::Justification::centredLeft);
         addAndMakeVisible (l);
     };
@@ -250,14 +356,14 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     volumeAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, prefix + "volume", volumeSlider);
 
-    // Subharmonic choice knob (shown for all playheads — PH1 can use fractional ones)
+    // Subharmonic choice knob
     makeLabel (subLabel, "SUB");
     styleRotary (subharmonicKnob, col);
     subharmonicKnob.setRange (0, NUM_SUBHARMONIC_CHOICES - 1, 1);
     subharmonicKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 60, 14);
     subharmonicKnob.textFromValueFunction = [] (double v)
     {
-	int choiceIdx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1, (int) v);
+        int choiceIdx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1, (int) v);
         return kSubharmonicNames[choiceIdx];
     };
     subharmonicKnob.valueFromTextFunction = [] (const juce::String& t)
@@ -271,12 +377,18 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     addAndMakeVisible (subharmonicKnob);
     subAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, prefix + "subharmonic", subharmonicKnob);
+
+    // LED strip — clickable per-step buttons
+    ledStrip = std::make_unique<StepLedStrip> (idx, apvts);
+    addAndMakeVisible (*ledStrip);
 }
 
 PlayheadRowComponent::~PlayheadRowComponent() {}
 
 void PlayheadRowComponent::setCurrentStep (int step, int numSteps)
 {
+    if (ledStrip)
+        ledStrip->setCurrentStep (step, numSteps);
     if (currentStep != step || activeSteps != numSteps)
     {
         currentStep = step;
@@ -293,16 +405,28 @@ void PlayheadRowComponent::refreshColour()
     repaint();
 }
 
+void PlayheadRowComponent::applyTheme()
+{
+    activeButton.setColour (juce::ToggleButton::tickDisabledColourId, DIM());
+    stepsLabel.setColour (juce::Label::textColourId, DIM());
+    volLabel.setColour   (juce::Label::textColourId, DIM());
+    subLabel.setColour   (juce::Label::textColourId, DIM());
+    repaint();
+}
+
 void PlayheadRowComponent::applyColourToControls (juce::Colour col)
 {
-    nameLabel.setColour (juce::Label::textColourId, col);
+    nameLabel.setColour   (juce::Label::textColourId, col);
     activeButton.setColour (juce::ToggleButton::textColourId, col);
     activeButton.setColour (juce::ToggleButton::tickColourId, col);
     stepsSlider.setColour  (juce::Slider::trackColourId,  col.withAlpha (0.8f));
     stepsSlider.setColour  (juce::Slider::thumbColourId,  col);
+    stepsSlider.setColour  (juce::Slider::backgroundColourId, ACC());
     volumeSlider.setColour (juce::Slider::trackColourId,  col.withAlpha (0.7f));
     volumeSlider.setColour (juce::Slider::thumbColourId,  col);
-    subharmonicKnob.setColour (juce::Slider::rotarySliderFillColourId, col);
+    volumeSlider.setColour (juce::Slider::backgroundColourId, ACC());
+    subharmonicKnob.setColour (juce::Slider::rotarySliderFillColourId,    col);
+    subharmonicKnob.setColour (juce::Slider::rotarySliderOutlineColourId, ACC());
     repaint();
 }
 
@@ -311,34 +435,22 @@ void PlayheadRowComponent::paint (juce::Graphics& g)
     const auto col = playheadColour (phIndex);
     auto bounds    = getLocalBounds().toFloat().reduced (2.f);
 
-    g.setColour (kSurface);
+    g.setColour (SURF());
     g.fillRoundedRectangle (bounds, 8.f);
     g.setColour (col.withAlpha (0.3f));
     g.drawRoundedRectangle (bounds, 8.f, 1.5f);
-
-    // LED strip
-    auto ledArea = bounds.removeFromBottom (20.f).reduced (4.f, 2.f);
-    const float ledW = ledArea.getWidth() / (float) MAX_STEPS;
-    for (int s = 0; s < MAX_STEPS; ++s)
-    {
-        auto cell = ledArea.withWidth (ledW)
-                           .withX (ledArea.getX() + s * ledW)
-                           .reduced (2.f, 1.f);
-        ledRects[(std::size_t) s] = cell;
-
-        const bool inRange = (s < activeSteps);
-        const bool active  = inRange && (s == currentStep);
-        if (active)        g.setColour (col);
-        else if (inRange)  g.setColour (col.withAlpha (0.22f));
-        else               g.setColour (kAccent.withAlpha (0.35f));
-        g.fillRoundedRectangle (cell, 3.f);
-    }
 }
 
 void PlayheadRowComponent::resized()
 {
     auto b = getLocalBounds().reduced (6);
-    b.removeFromBottom (24);  // LEDs
+
+    // LED strip at bottom
+    auto ledArea = b.removeFromBottom (28);
+    if (ledStrip)
+        ledStrip->setBounds (ledArea.reduced (2, 2));
+
+    b.removeFromBottom (4);
 
     // Far left: colour swatch button
     auto swatchArea = b.removeFromLeft (20);
@@ -385,7 +497,7 @@ MultiheadSequencerAudioProcessorEditor::MultiheadSequencerAudioProcessorEditor (
 
     bpmLabel.setText ("BPM", juce::dontSendNotification);
     bpmLabel.setFont (juce::Font (juce::FontOptions().withHeight (10.0f).withStyle ("Bold")));
-    bpmLabel.setColour (juce::Label::textColourId, kDim);
+    bpmLabel.setColour (juce::Label::textColourId, DIM());
     bpmLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (bpmLabel);
 
@@ -397,30 +509,42 @@ MultiheadSequencerAudioProcessorEditor::MultiheadSequencerAudioProcessorEditor (
 
     collisionLabel.setText ("COLLISION", juce::dontSendNotification);
     collisionLabel.setFont (juce::Font (juce::FontOptions().withHeight (9.0f).withStyle ("Bold")));
-    collisionLabel.setColour (juce::Label::textColourId, kDim);
+    collisionLabel.setColour (juce::Label::textColourId, DIM());
     collisionLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (collisionLabel);
 
-    // Collision button: OFF = ONE note wins, ON = ALL notes play.
-    // The attachment maps toggle OFF→param 0.0 and ON→param 1.0.
-    // We set the label AFTER the attachment has set the initial toggle state.
     collisionButton.setClickingTogglesState (true);
-    collisionButton.setColour (juce::TextButton::buttonColourId,   kAccent);
+    collisionButton.setColour (juce::TextButton::buttonColourId,   ACC());
     collisionButton.setColour (juce::TextButton::buttonOnColourId, kHighlight);
-    collisionButton.setColour (juce::TextButton::textColourOffId,  kText);
-    collisionButton.setColour (juce::TextButton::textColourOnId,   kText);
+    collisionButton.setColour (juce::TextButton::textColourOffId,  TXT());
+    collisionButton.setColour (juce::TextButton::textColourOnId,   TXT());
     addAndMakeVisible (collisionButton);
-
     collisionAttach = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         p.apvts, "collisionMode", collisionButton);
-
-    // Now the attachment has set the initial state — update label accordingly
     collisionButton.setButtonText (collisionButton.getToggleState() ? "ALL" : "ONE");
-    // Keep label in sync whenever the button is clicked
     collisionButton.onClick = [this]
     {
         collisionButton.setButtonText (collisionButton.getToggleState() ? "ALL" : "ONE");
     };
+
+    // Theme colour picker buttons
+    themeLabel.setText ("THEME", juce::dontSendNotification);
+    themeLabel.setFont (juce::Font (juce::FontOptions().withHeight (9.0f).withStyle ("Bold")));
+    themeLabel.setColour (juce::Label::textColourId, DIM());
+    themeLabel.setJustificationType (juce::Justification::centred);
+    addAndMakeVisible (themeLabel);
+
+    const juce::StringArray themeNames { "BG", "SURF", "ACCENT" };
+    for (int i = 0; i < 3; ++i)
+    {
+        auto& btn = themeButtons[(std::size_t) i];
+        btn.setButtonText (themeNames[i]);
+        btn.setColour (juce::TextButton::textColourOffId, TXT());
+        const int slot = i;
+        btn.onClick = [this, slot] { openThemePicker (slot); };
+        addAndMakeVisible (btn);
+    }
+    applyThemeToAll();
 
     for (std::size_t i = 0; i < NUM_PITCHES; ++i)
     {
@@ -444,7 +568,7 @@ MultiheadSequencerAudioProcessorEditor::MultiheadSequencerAudioProcessorEditor (
 
     startTimerHz (30);
     setResizable (true, false);
-    setSize (1400, 1000);
+    setSize (1400, 1060);
 }
 
 MultiheadSequencerAudioProcessorEditor::~MultiheadSequencerAudioProcessorEditor()
@@ -453,25 +577,57 @@ MultiheadSequencerAudioProcessorEditor::~MultiheadSequencerAudioProcessorEditor(
 }
 
 //==============================================================================
-// Inner class that bridges ColourSelector changes back to the editor.
-// Owned by the CallOutBox via unique_ptr, so it lives exactly as long as the popup.
+void MultiheadSequencerAudioProcessorEditor::applyThemeToAll()
+{
+    // Update theme button swatch colours
+    juce::Colour swatches[3] = { BG(), SURF(), ACC() };
+    for (int i = 0; i < 3; ++i)
+    {
+        themeButtons[(std::size_t) i].setColour (juce::TextButton::buttonColourId,
+                                                  swatches[i]);
+        themeButtons[(std::size_t) i].setColour (juce::TextButton::textColourOffId,
+                                                  swatches[i].contrasting (0.9f));
+    }
+
+    bpmLabel.setColour       (juce::Label::textColourId, DIM());
+    collisionLabel.setColour (juce::Label::textColourId, DIM());
+    themeLabel.setColour     (juce::Label::textColourId, DIM());
+
+    styleRotary (bpmSlider, kHighlight);
+    collisionButton.setColour (juce::TextButton::buttonColourId, ACC());
+
+    for (auto& rs : rhythmSlots)
+        if (rs) rs->applyTheme();
+
+    for (auto& pr : playheadRows)
+        if (pr) { pr->refreshColour(); pr->applyTheme(); }
+
+    for (auto& ps : pitchSteps)
+        if (ps) ps->repaint();
+
+    repaint();
+}
+
+//==============================================================================
+// Colour picker bridge — inner class shared by playhead and theme pickers
 struct ColourPickerBridge : public juce::ChangeListener
 {
-    ColourPickerBridge (MultiheadSequencerAudioProcessorEditor& e, int ph,
-                        juce::ColourSelector& sel)
-        : editor (e), playheadIndex (ph), selector (sel) {}
+    ColourPickerBridge (std::function<void(juce::Colour)> cb, juce::ColourSelector& sel)
+        : callback (cb), selector (sel) {}
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override
     {
-        editor.onColourChanged (playheadIndex, selector.getCurrentColour());
+        callback (selector.getCurrentColour());
     }
 
-    MultiheadSequencerAudioProcessorEditor& editor;
-    int playheadIndex;
+    std::function<void(juce::Colour)> callback;
     juce::ColourSelector& selector;
 };
 
-void MultiheadSequencerAudioProcessorEditor::openColourPicker (int playheadIndex)
+static void launchColourPicker (juce::Component* parent,
+                                  juce::Rectangle<int> anchor,
+                                  juce::Colour initial,
+                                  std::function<void(juce::Colour)> onChange)
 {
     auto selectorOwned = std::make_unique<juce::ColourSelector> (
         juce::ColourSelector::showColourAtTop
@@ -479,45 +635,56 @@ void MultiheadSequencerAudioProcessorEditor::openColourPicker (int playheadIndex
         | juce::ColourSelector::showColourspace);
 
     auto* selector = selectorOwned.get();
-    selector->setName ("Playhead " + juce::String (playheadIndex + 1) + " Colour");
-    selector->setCurrentColour (playheadColour (playheadIndex));
+    selector->setCurrentColour (initial);
     selector->setSize (300, 400);
-
-    // Bridge is owned by the selector component via a child component trick:
-    // store it as a member on the selector using Component::getProperties isn't clean,
-    // so instead we attach it as a child that also acts as a ChangeListener.
-    // Simplest: make it a named property via a lambda-wrapper component.
-    // Actually cleanest for JUCE: store bridge in a local unique_ptr that we
-    // attach to the selector's ComponentDeletionWatcher — but simplest of all
-    // is just a raw new with addChangeListener, since the selector outlives the bridge
-    // only if we delete the bridge first. We use a custom Component child as owner.
 
     struct BridgeOwner : public juce::Component, public juce::ChangeListener
     {
-        BridgeOwner (MultiheadSequencerAudioProcessorEditor& e, int ph,
-                     juce::ColourSelector& sel)
-            : editor (e), playheadIndex (ph), selector (sel)
-        {
-            setVisible (false);
-            setSize (1, 1);
-        }
+        BridgeOwner (std::function<void(juce::Colour)> cb, juce::ColourSelector& sel)
+            : callback (cb), selector (sel)
+        { setVisible (false); setSize (1, 1); }
+
         void changeListenerCallback (juce::ChangeBroadcaster*) override
-        {
-            editor.onColourChanged (playheadIndex, selector.getCurrentColour());
-        }
-        MultiheadSequencerAudioProcessorEditor& editor;
-        int playheadIndex;
+        { callback (selector.getCurrentColour()); }
+
+        std::function<void(juce::Colour)> callback;
         juce::ColourSelector& selector;
     };
 
-    auto* bridge = new BridgeOwner (*this, playheadIndex, *selector);
-    selector->addChildComponent (bridge);   // selector owns bridge lifetime
+    auto* bridge = new BridgeOwner (onChange, *selector);
+    selector->addChildComponent (bridge);
     selector->addChangeListener (bridge);
 
-    juce::CallOutBox::launchAsynchronously (
-        std::move (selectorOwned),
+    juce::CallOutBox::launchAsynchronously (std::move (selectorOwned), anchor, parent);
+}
+
+void MultiheadSequencerAudioProcessorEditor::openColourPicker (int playheadIndex)
+{
+    launchColourPicker (
+        this,
         playheadRows[(std::size_t) playheadIndex]->getBoundsInParent(),
-        this);
+        playheadColour (playheadIndex),
+        [this, playheadIndex] (juce::Colour c) { onColourChanged (playheadIndex, c); });
+}
+
+void MultiheadSequencerAudioProcessorEditor::openThemePicker (int slot)
+{
+    juce::Colour initial;
+    if      (slot == 0) initial = BG();
+    else if (slot == 1) initial = SURF();
+    else                initial = ACC();
+
+    launchColourPicker (
+        this,
+        themeButtons[(std::size_t) slot].getBoundsInParent(),
+        initial,
+        [this, slot] (juce::Colour c)
+        {
+            if      (slot == 0) theme().background = c;
+            else if (slot == 1) theme().surface    = c;
+            else                theme().accent     = c;
+            applyThemeToAll();
+        });
 }
 
 void MultiheadSequencerAudioProcessorEditor::onColourChanged (int playheadIndex,
@@ -525,7 +692,6 @@ void MultiheadSequencerAudioProcessorEditor::onColourChanged (int playheadIndex,
 {
     PlayheadColours::get().set (playheadIndex, newColour);
 
-    // Refresh all components that show this playhead's colour
     if (playheadRows[(std::size_t) playheadIndex])
         playheadRows[(std::size_t) playheadIndex]->refreshColour();
 
@@ -533,7 +699,6 @@ void MultiheadSequencerAudioProcessorEditor::onColourChanged (int playheadIndex,
         if (rhythmSlots[r])
             rhythmSlots[r]->refreshButtons();
 
-    // Pitch steps repaint to show updated dot colours
     for (std::size_t i = 0; i < NUM_PITCHES; ++i)
         if (pitchSteps[i])
             pitchSteps[i]->repaint();
@@ -542,10 +707,10 @@ void MultiheadSequencerAudioProcessorEditor::onColourChanged (int playheadIndex,
 //==============================================================================
 void MultiheadSequencerAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (kBackground);
+    g.fillAll (BG());
     const float w = (float) getWidth();
 
-    g.setColour (kDim);
+    g.setColour (DIM());
     g.setFont (juce::Font (juce::FontOptions().withHeight (9.0f).withStyle ("Bold")));
     g.drawText ("PITCH SEQUENCE", juce::Rectangle<int> (10, 62,  140, 12),
                 juce::Justification::centredLeft);
@@ -554,7 +719,7 @@ void MultiheadSequencerAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText ("PLAYHEADS",      juce::Rectangle<int> (10, 392, 140, 12),
                 juce::Justification::centredLeft);
 
-    g.setColour (kAccent);
+    g.setColour (ACC());
     g.drawHorizontalLine (60,  10.f, w - 10.f);
     g.drawHorizontalLine (230, 10.f, w - 10.f);
     g.drawHorizontalLine (390, 10.f, w - 10.f);
@@ -567,8 +732,9 @@ void MultiheadSequencerAudioProcessorEditor::resized()
 
     auto area = getLocalBounds().reduced (10);
 
+    // Top bar: title | ... | theme | bpm | collision
     auto topBar = area.removeFromTop (50);
-    titleLabel.setBounds (topBar.removeFromLeft (320));
+    titleLabel.setBounds (topBar.removeFromLeft (240));
 
     auto collArea = topBar.removeFromRight (90);
     collisionLabel.setBounds  (collArea.removeFromTop (14));
@@ -578,8 +744,18 @@ void MultiheadSequencerAudioProcessorEditor::resized()
     bpmLabel.setBounds  (bpmArea.removeFromTop (14));
     bpmSlider.setBounds (bpmArea);
 
+    // Theme picker section: label + 3 swatch buttons
+    topBar.removeFromRight (8);
+    auto themeArea = topBar.removeFromRight (200);
+    themeLabel.setBounds (themeArea.removeFromTop (14));
+    const int swW = themeArea.getWidth() / 3;
+    for (int i = 0; i < 3; ++i)
+        themeButtons[(std::size_t) i].setBounds (
+            themeArea.withWidth (swW).withX (themeArea.getX() + i * swW).reduced (3, 2));
+
     area.removeFromTop (14);
 
+    // 16 pitch sliders
     auto pitchRow = area.removeFromTop (160);
     const int stepW = pitchRow.getWidth() / (int) NUM_PITCHES;
     for (std::size_t i = 0; i < NUM_PITCHES; ++i)
@@ -633,6 +809,9 @@ void MultiheadSequencerAudioProcessorEditor::timerCallback()
         if (rhythmSlots[r])
             rhythmSlots[r]->refreshButtons();
 
-    // Keep collision label in sync with actual toggle state
+    // Sync step LEDs from APVTS (catches external automation changes)
+    // (done via ledStrip::refreshFromApvts — but skip every frame to save CPU;
+    //  mouseDown already updates locally so this is just a safety net)
+
     collisionButton.setButtonText (collisionButton.getToggleState() ? "ALL" : "ONE");
 }

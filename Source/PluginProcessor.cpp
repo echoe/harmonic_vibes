@@ -54,6 +54,13 @@ MultiheadSequencerAudioProcessor::createParameterLayout()
                 p + "slot" + juce::String (r),
                 n + " Slot " + juce::String (r + 1),
                 ph == r));
+
+        // Per-step enable flags
+        for (int s = 0; s < MAX_STEPS; ++s)
+            layout.add (std::make_unique<juce::AudioParameterBool> (
+                p + "step" + juce::String (s),
+                n + " Step " + juce::String (s + 1),
+                true));  // all steps enabled by default
     }
 
     return layout;
@@ -92,6 +99,13 @@ MultiheadSequencerAudioProcessor::MultiheadSequencerAudioProcessor()
             playheads[ph].slotActive[r] = apvts.getRawParameterValue (
                 p + "slot" + juce::String ((int) r));
             jassert (playheads[ph].slotActive[r] != nullptr);
+        }
+
+        for (std::size_t s = 0; s < MAX_STEPS; ++s)
+        {
+            playheads[ph].stepEnabled[s] = apvts.getRawParameterValue (
+                p + "step" + juce::String ((int) s));
+            jassert (playheads[ph].stepEnabled[s] != nullptr);
         }
 
         currentSteps[ph].store (0);
@@ -245,21 +259,30 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
                     if (!subscribed) continue;
 
+                    // Advance step — bounded by numSteps so the slider actually limits the loop
                     head.stepIndex  = (head.stepIndex  + 1) % numSteps;
-                    head.pitchIndex = (head.pitchIndex + 1) % (int) NUM_PITCHES;
+                    // pitchIndex tracks the step directly so STEPS setting controls pitch length
+                    head.pitchIndex = head.stepIndex;
                     currentSteps[ph].store (head.stepIndex);
                     currentPitchIndices[ph].store (head.pitchIndex);
 
-                    if (pitchParams[(std::size_t) head.pitchIndex] == nullptr) continue;
-                    const int rawNote  = juce::jlimit (0, 127,
-                                             (int) pitchParams[(std::size_t) head.pitchIndex]->load());
-                    const int midiNote = applySubharmonic (rawNote, subDivisor);
+                    // Check if this step is enabled
+                    const bool stepOn = (head.stepEnabled[(std::size_t) head.stepIndex] == nullptr
+                                         || head.stepEnabled[(std::size_t) head.stepIndex]->load() >= 0.5f);
 
+                    // Always send a note-off for any currently-sounding note from this slot
                     if (head.slotLastNote[r] >= 0)
                     {
                         pendingEvents.push_back ({ s, head.slotLastNote[r], 0, (int) ph });
                         head.slotLastNote[r] = -1;
                     }
+
+                    if (!stepOn) continue;  // step muted — no note-on
+
+                    if (pitchParams[(std::size_t) head.pitchIndex] == nullptr) continue;
+                    const int rawNote  = juce::jlimit (0, 127,
+                                             (int) pitchParams[(std::size_t) head.pitchIndex]->load());
+                    const int midiNote = applySubharmonic (rawNote, subDivisor);
 
                     pendingEvents.push_back ({ s, midiNote, vel, (int) ph });
                     head.slotLastNote[r]         = midiNote;

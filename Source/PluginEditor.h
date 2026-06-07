@@ -6,6 +6,27 @@
 #include "PluginProcessor.h"
 
 //==============================================================================
+// Global theme colours — components read from here so one change repaints everything.
+struct ThemeColours
+{
+    static ThemeColours& get()
+    {
+        static ThemeColours instance;
+        return instance;
+    }
+
+    juce::Colour background { 0xFF1A1A2E };
+    juce::Colour surface    { 0xFF16213E };
+    juce::Colour accent     { 0xFF0F3460 };
+
+    // Derived helpers
+    juce::Colour text()     const { return juce::Colours::white.withAlpha (0.93f); }
+    juce::Colour dim()      const { return background.contrasting (0.5f).withAlpha (0.7f); }
+};
+
+inline ThemeColours& theme() { return ThemeColours::get(); }
+
+//==============================================================================
 // Shared mutable colour table — all components read from here so a colour
 // change is reflected everywhere immediately on the next repaint/refresh.
 struct PlayheadColours
@@ -58,7 +79,7 @@ public:
     void setActivePlayheads (int bitmask);
 
 private:
-    int stepIndex;
+    int stepIndex { 0 };
     int activePlayheadMask { 0 };
 
     juce::Slider pitchSlider;
@@ -78,6 +99,7 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void refreshButtons();   // sync button colours from APVTS + PlayheadColours
+    void applyTheme();
 
 private:
     int slotIndex;
@@ -90,6 +112,32 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> rhythmAttach;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RhythmSlotComponent)
+};
+
+//==============================================================================
+// LED strip with clickable step buttons for per-step mute/enable
+class StepLedStrip : public juce::Component
+{
+public:
+    StepLedStrip (int phIndex, juce::AudioProcessorValueTreeState& apvts);
+
+    void paint (juce::Graphics& g) override;
+    void mouseDown (const juce::MouseEvent& e) override;
+    void setCurrentStep (int step, int numSteps);
+    void refreshFromApvts();
+
+private:
+    int phIndex;
+    juce::AudioProcessorValueTreeState& apvts;
+    int currentStep { 0 };
+    int activeSteps { 8 };
+
+    // Local cache of enabled state for each step
+    std::array<bool, MAX_STEPS> stepEnabled;
+
+    juce::Rectangle<float> stepRect (int s) const;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StepLedStrip)
 };
 
 //==============================================================================
@@ -106,6 +154,7 @@ public:
     void setCurrentStep (int step, int numSteps);
     // Call after a colour change to re-tint all child controls
     void refreshColour();
+    void applyTheme();
 
 private:
     int phIndex;
@@ -122,12 +171,12 @@ private:
     juce::Label        volLabel;
     juce::Label        subLabel;
 
+    std::unique_ptr<StepLedStrip> ledStrip;
+
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> activeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> stepsAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volumeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> subAttach;
-
-    std::array<juce::Rectangle<float>, MAX_STEPS> ledRects;
 
     void applyColourToControls (juce::Colour col);
 
@@ -145,9 +194,12 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void onColourChanged (int playheadIndex, juce::Colour newColour);
+    void applyThemeToAll();   // called after any theme colour change
+
 private:
     void timerCallback() override;
     void openColourPicker (int playheadIndex);
+    void openThemePicker (int slot);  // slot: 0=background, 1=surface, 2=accent
 
     MultiheadSequencerAudioProcessor& processorRef;
 
@@ -159,6 +211,10 @@ private:
     juce::TextButton collisionButton;
     juce::Label      collisionLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> collisionAttach;
+
+    // Theme colour picker buttons: Background / Surface / Accent
+    std::array<juce::TextButton, 3> themeButtons;
+    juce::Label themeLabel;
 
     std::array<std::unique_ptr<PitchStepComponent>,   NUM_PITCHES>   pitchSteps;
     std::array<std::unique_ptr<RhythmSlotComponent>,  NUM_RHYTHMS>   rhythmSlots;
