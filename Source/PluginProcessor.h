@@ -9,16 +9,16 @@ static constexpr int MAX_STEPS          = 16;
 static constexpr int NUM_PLAYHEADS      = 4;
 static constexpr int NUM_PITCHES        = 8;
 static constexpr int NUM_RHYTHMS        = 4;
-static constexpr int NUM_RHYTHM_CHOICES = 16;
+static constexpr int NUM_RHYTHM_CHOICES = 14;
 
 static constexpr std::array<float, NUM_RHYTHM_CHOICES> kRhythmDivisors {
     0.25f,  // Whole note
     0.5f,   // Half note
     0.75f,  // Dotted quarter
     1.0f,   // Quarter
-    1.25f,  // Fifth
+    1.25,   // Fifth
     1.5f,   // Dotted 8th
-    1.75f,  // Seventh
+    1.75,   // Seventh
     2.0f,   // 8th
     3.0f,   // 8th triplet
     4.0f,   // 16th
@@ -26,14 +26,11 @@ static constexpr std::array<float, NUM_RHYTHM_CHOICES> kRhythmDivisors {
     8.0f,   // 32nd
     12.0f,  // 32nd triplet
     16.0f,  // 64th
-    24.0f,  // 64th triplet
-    32.0f   // 128th
 };
 
 static const juce::StringArray kRhythmNames {
-    "Whole", "Half", "Dotted 1/4", "Quarter", "Fifth",
-    "Dotted 8th", "Seventh", "8th", "8th Trip", "16th", "16th Trip", "32nd",
-    "32nd Trip", "64th", "64th Trip", "128th"
+    "Whole", "Half", "Dotted 1/4", "Quarter", "Fifth", "Dotted 8th", "Seventh", 
+    "8th", "8th Trip", "16th", "16th Trip", "32nd", "32nd triplet", "64th"
 };
 
 // Subharmonic choices: fractional (superharmonics) then integer divisors.

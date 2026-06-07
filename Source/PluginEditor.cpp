@@ -257,8 +257,8 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     subharmonicKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 60, 14);
     subharmonicKnob.textFromValueFunction = [] (double v)
     {
-        int choiceidx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1, (int) v);
-        return kSubharmonicNames[choiceidx];
+	int choiceIdx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1, (int) v);
+        return kSubharmonicNames[choiceIdx];
     };
     subharmonicKnob.valueFromTextFunction = [] (const juce::String& t)
     {
@@ -444,7 +444,7 @@ MultiheadSequencerAudioProcessorEditor::MultiheadSequencerAudioProcessorEditor (
 
     startTimerHz (30);
     setResizable (true, false);
-    setSize (1200, 1000);
+    setSize (1400, 1000);
 }
 
 MultiheadSequencerAudioProcessorEditor::~MultiheadSequencerAudioProcessorEditor()

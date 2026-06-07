@@ -18,12 +18,12 @@ struct PlayheadColours
 
     juce::Colour colour (int ph) const
     {
-	    return colours[static_cast<std::size_t>(juce::jlimit(0, NUM_PLAYHEADS - 1, ph))];
+        return colours[static_cast<std::size_t>(juce::jlimit (0, NUM_PLAYHEADS - 1, ph))];
     }
 
     void set (int ph, juce::Colour c)
     {
-	    colours[static_cast<std::size_t>(juce::jlimit (0, NUM_PLAYHEADS - 1, ph))] = c;
+        colours[static_cast<std::size_t>(juce::jlimit (0, NUM_PLAYHEADS - 1, ph))] = c;
     }
 
 private:
@@ -142,10 +142,9 @@ public:
     explicit MultiheadSequencerAudioProcessorEditor (MultiheadSequencerAudioProcessor&);
     ~MultiheadSequencerAudioProcessorEditor() override;
 
-    void onColourChanged (int playheadIndex, juce::Colour newColour);
     void paint (juce::Graphics&) override;
     void resized() override;
-
+    void onColourChanged (int playheadIndex, juce::Colour newColour);
 private:
     void timerCallback() override;
     void openColourPicker (int playheadIndex);
