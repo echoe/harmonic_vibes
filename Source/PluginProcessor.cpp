@@ -36,6 +36,8 @@ MultiheadSequencerAudioProcessor::createParameterLayout()
 
         layout.add (std::make_unique<juce::AudioParameterInt> (
             p + "steps",  n + " Steps", 1, MAX_STEPS, 8));
+        layout.add (std::make_unique<juce::AudioParameterInt> (
+            p + "startNote", n + " Start Note", 0, NUM_PITCHES - 1, 0));
         layout.add (std::make_unique<juce::AudioParameterFloat> (
             p + "volume", n + " Volume",
             juce::NormalisableRange<float> (0.f, 1.f, 0.01f), 0.8f));
@@ -89,10 +91,12 @@ MultiheadSequencerAudioProcessor::MultiheadSequencerAudioProcessor()
         playheads[ph].volume      = apvts.getRawParameterValue (p + "volume");
         playheads[ph].active      = apvts.getRawParameterValue (p + "active");
         playheads[ph].subharmonic = apvts.getRawParameterValue (p + "subharmonic");
+        playheads[ph].startNote   = apvts.getRawParameterValue (p + "startNote");
         jassert (playheads[ph].numSteps    != nullptr);
         jassert (playheads[ph].volume      != nullptr);
         jassert (playheads[ph].active      != nullptr);
         jassert (playheads[ph].subharmonic != nullptr);
+        jassert (playheads[ph].startNote   != nullptr);
 
         for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
         {
@@ -261,8 +265,11 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
                     // Advance step — bounded by numSteps so the slider actually limits the loop
                     head.stepIndex  = (head.stepIndex  + 1) % numSteps;
-                    // pitchIndex tracks the step directly so STEPS setting controls pitch length
-                    head.pitchIndex = head.stepIndex;
+                    // pitchIndex = startNote offset + current step, wrapped within pitch pool
+                    const int startOff  = (head.startNote != nullptr)
+                                          ? juce::jlimit (0, NUM_PITCHES - 1, (int) head.startNote->load())
+                                          : 0;
+                    head.pitchIndex = (startOff + head.stepIndex) % NUM_PITCHES;
                     currentSteps[ph].store (head.stepIndex);
                     currentPitchIndices[ph].store (head.pitchIndex);
 

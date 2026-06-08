@@ -79,7 +79,6 @@ public:
     void setActivePlayheads (int bitmask);
 
 private:
-    int stepIndex { 0 };
     int activePlayheadMask { 0 };
 
     juce::Slider pitchSlider;
@@ -165,9 +164,11 @@ private:
     juce::Label        nameLabel;
     juce::ToggleButton activeButton;
     juce::Slider       stepsSlider;
+    juce::Slider       startNoteSlider;
     juce::Slider       volumeSlider;
     juce::Slider       subharmonicKnob;
     juce::Label        stepsLabel;
+    juce::Label        startNoteLabel;
     juce::Label        volLabel;
     juce::Label        subLabel;
 
@@ -175,6 +176,7 @@ private:
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> activeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> stepsAttach;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> startNoteAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> volumeAttach;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> subAttach;
 

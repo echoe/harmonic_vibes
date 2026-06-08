@@ -37,7 +37,6 @@ static void styleHorizSlider (juce::Slider& s, juce::Colour col)
 // PitchStepComponent
 //==============================================================================
 PitchStepComponent::PitchStepComponent (int index, juce::AudioProcessorValueTreeState& apvts)
-    : stepIndex (index)
 {
     indexLabel.setText (juce::String (index + 1), juce::dontSendNotification);
     indexLabel.setFont (juce::Font (juce::FontOptions().withHeight (11.0f).withStyle ("Bold")));
@@ -99,7 +98,7 @@ void PitchStepComponent::paint (juce::Graphics& g)
             if (activePlayheadMask & (1 << ph))
             {
                 g.setColour (playheadColour (ph));
-                g.fillEllipse (startX - col * (dotR * 2.f + 2.f) - dotR,
+                g.fillEllipse (startX - static_cast<float>(col) * (dotR * 2.f + 2.f) - dotR,               
                                dotY - dotR, dotR * 2.f, dotR * 2.f);
                 ++col;
             }
@@ -126,8 +125,20 @@ RhythmSlotComponent::RhythmSlotComponent (int idx, juce::AudioProcessorValueTree
     slotLabel.setJustificationType (juce::Justification::centred);
     addAndMakeVisible (slotLabel);
 
-    styleRotary (rhythmKnob, kHighlight);
-    rhythmKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 80, 14);
+    styleHorizSlider (rhythmKnob, kHighlight);
+    rhythmKnob.setRange (0, NUM_RHYTHM_CHOICES - 1, 1);
+    rhythmKnob.setTextBoxStyle (juce::Slider::TextBoxRight, false, 68, 18);
+    rhythmKnob.textFromValueFunction = [] (double v)
+    {
+        int i = juce::jlimit (0, NUM_RHYTHM_CHOICES - 1, (int) v);
+        return kRhythmNames[i];
+    };
+    rhythmKnob.valueFromTextFunction = [] (const juce::String& t)
+    {
+        for (int i = 0; i < NUM_RHYTHM_CHOICES; ++i)
+            if (kRhythmNames[i] == t) return (double) i;
+        return 0.0;
+    };
     addAndMakeVisible (rhythmKnob);
 
     rhythmAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
@@ -158,7 +169,7 @@ RhythmSlotComponent::~RhythmSlotComponent() {}
 void RhythmSlotComponent::applyTheme()
 {
     slotLabel.setColour (juce::Label::textColourId, DIM());
-    styleRotary (rhythmKnob, kHighlight);
+    styleHorizSlider (rhythmKnob, kHighlight);
     refreshButtons();
     repaint();
 }
@@ -195,9 +206,8 @@ void RhythmSlotComponent::resized()
 {
     auto b = getLocalBounds().reduced (6);
     slotLabel.setBounds (b.removeFromTop (16));
-    b.removeFromTop (2);
-    auto knobArea = b.removeFromTop (b.getHeight() - 30);
-    rhythmKnob.setBounds (knobArea);
+    b.removeFromTop (4);
+    rhythmKnob.setBounds (b.removeFromTop (24));
     b.removeFromTop (4);
     const int btnW = b.getWidth() / NUM_PLAYHEADS;
     for (int ph = 0; ph < NUM_PLAYHEADS; ++ph)
@@ -220,7 +230,7 @@ juce::Rectangle<float> StepLedStrip::stepRect (int s) const
     const float w = (float) getWidth();
     const float h = (float) getHeight();
     const float ledW = w / (float) MAX_STEPS;
-    return juce::Rectangle<float> (s * ledW, 0.f, ledW, h).reduced (2.f, 1.f);
+    return juce::Rectangle<float> (static_cast<float>(s) * ledW, 0.f, ledW, h).reduced (2.f, 1.f);
 }
 
 void StepLedStrip::paint (juce::Graphics& g)
@@ -348,6 +358,19 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     stepsAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, prefix + "steps", stepsSlider);
 
+    makeLabel (startNoteLabel, "START");
+    styleHorizSlider (startNoteSlider, col);
+    startNoteSlider.setRange (0, NUM_PITCHES - 1, 1);
+    startNoteSlider.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 22, 18);
+    startNoteSlider.setTooltip ("Starting pitch slot (1 = first note in the pitch pool)");
+    addAndMakeVisible (startNoteSlider);
+    startNoteAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        apvts, prefix + "startNote", startNoteSlider);
+    // Set AFTER attachment so the formatter isn't overwritten on initial value push
+    startNoteSlider.textFromValueFunction = [] (double v) { return juce::String ((int) v + 1); };
+    startNoteSlider.valueFromTextFunction = [] (const juce::String& t) { return (double) (t.getIntValue() - 1); };
+    startNoteSlider.updateText();
+
     makeLabel (volLabel, "VOL");
     styleHorizSlider (volumeSlider, col);
     volumeSlider.setRange (0.0, 1.0, 0.01);
@@ -356,11 +379,11 @@ PlayheadRowComponent::PlayheadRowComponent (int idx,
     volumeAttach = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, prefix + "volume", volumeSlider);
 
-    // Subharmonic choice knob
+    // Subharmonic choice slider
     makeLabel (subLabel, "SUB");
-    styleRotary (subharmonicKnob, col);
+    styleHorizSlider (subharmonicKnob, col);
     subharmonicKnob.setRange (0, NUM_SUBHARMONIC_CHOICES - 1, 1);
-    subharmonicKnob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 60, 14);
+    subharmonicKnob.setTextBoxStyle (juce::Slider::TextBoxRight, false, 58, 18);
     subharmonicKnob.textFromValueFunction = [] (double v)
     {
         int choiceIdx = juce::jlimit (0, NUM_SUBHARMONIC_CHOICES - 1, (int) v);
@@ -408,9 +431,10 @@ void PlayheadRowComponent::refreshColour()
 void PlayheadRowComponent::applyTheme()
 {
     activeButton.setColour (juce::ToggleButton::tickDisabledColourId, DIM());
-    stepsLabel.setColour (juce::Label::textColourId, DIM());
-    volLabel.setColour   (juce::Label::textColourId, DIM());
-    subLabel.setColour   (juce::Label::textColourId, DIM());
+    stepsLabel.setColour     (juce::Label::textColourId, DIM());
+    startNoteLabel.setColour (juce::Label::textColourId, DIM());
+    volLabel.setColour       (juce::Label::textColourId, DIM());
+    subLabel.setColour       (juce::Label::textColourId, DIM());
     repaint();
 }
 
@@ -422,11 +446,18 @@ void PlayheadRowComponent::applyColourToControls (juce::Colour col)
     stepsSlider.setColour  (juce::Slider::trackColourId,  col.withAlpha (0.8f));
     stepsSlider.setColour  (juce::Slider::thumbColourId,  col);
     stepsSlider.setColour  (juce::Slider::backgroundColourId, ACC());
+    startNoteSlider.setColour (juce::Slider::trackColourId,  col.withAlpha (0.8f));
+    startNoteSlider.setColour (juce::Slider::thumbColourId,  col);
+    startNoteSlider.setColour (juce::Slider::backgroundColourId, ACC());
     volumeSlider.setColour (juce::Slider::trackColourId,  col.withAlpha (0.7f));
     volumeSlider.setColour (juce::Slider::thumbColourId,  col);
     volumeSlider.setColour (juce::Slider::backgroundColourId, ACC());
-    subharmonicKnob.setColour (juce::Slider::rotarySliderFillColourId,    col);
-    subharmonicKnob.setColour (juce::Slider::rotarySliderOutlineColourId, ACC());
+    subharmonicKnob.setColour (juce::Slider::trackColourId,      col.withAlpha (0.8f));
+    subharmonicKnob.setColour (juce::Slider::thumbColourId,      col);
+    subharmonicKnob.setColour (juce::Slider::backgroundColourId, ACC());
+    subharmonicKnob.setColour (juce::Slider::textBoxTextColourId, TXT());
+    subharmonicKnob.setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+    subharmonicKnob.setColour (juce::Slider::textBoxOutlineColourId,    juce::Colours::transparentBlack);
     repaint();
 }
 
@@ -464,22 +495,29 @@ void PlayheadRowComponent::resized()
 
     b.removeFromLeft (6);
 
-    // Far right: subharmonic knob
-    auto subArea = b.removeFromRight (78);
+    // Far right: subharmonic slider (~2x the old knob width)
+    auto subArea = b.removeFromRight (160);
     subLabel.setBounds        (subArea.removeFromTop (14));
-    subharmonicKnob.setBounds (subArea);
-    b.removeFromRight (4);
+    subharmonicKnob.setBounds (subArea.removeFromTop (22));
+    b.removeFromRight (6);
 
-    // Centre: steps + volume sliders stacked
+    // Centre: steps full-width, then start + vol side by side at half width each
     auto stepsRow = b.removeFromTop (20);
     stepsLabel.setBounds   (stepsRow.removeFromLeft (42));
     stepsSlider.setBounds  (stepsRow);
 
-    b.removeFromTop (4);
+    b.removeFromTop (3);
 
-    auto volRow = b.removeFromTop (20);
-    volLabel.setBounds     (volRow.removeFromLeft (42));
-    volumeSlider.setBounds (volRow);
+    auto smallRow = b.removeFromTop (20);
+    const int halfW = smallRow.getWidth() / 2;
+
+    auto startHalf = smallRow.removeFromLeft (halfW);
+    startNoteLabel.setBounds  (startHalf.removeFromLeft (42));
+    startNoteSlider.setBounds (startHalf);
+
+    auto volHalf = smallRow;
+    volLabel.setBounds     (volHalf.removeFromLeft (42));
+    volumeSlider.setBounds (volHalf);
 }
 
 //==============================================================================
@@ -568,7 +606,7 @@ MultiheadSequencerAudioProcessorEditor::MultiheadSequencerAudioProcessorEditor (
 
     startTimerHz (30);
     setResizable (true, false);
-    setSize (1400, 1060);
+    setSize (1000, 700);
 }
 
 MultiheadSequencerAudioProcessorEditor::~MultiheadSequencerAudioProcessorEditor()
@@ -764,7 +802,7 @@ void MultiheadSequencerAudioProcessorEditor::resized()
 
     area.removeFromTop (18);
 
-    auto rhythmRow = area.removeFromTop (150);
+    auto rhythmRow = area.removeFromTop (80);
     const int slotW = rhythmRow.getWidth() / (int) NUM_RHYTHMS;
     for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
         rhythmSlots[r]->setBounds (

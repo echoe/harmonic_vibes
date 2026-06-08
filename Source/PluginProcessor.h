@@ -60,6 +60,7 @@ struct Playhead
     std::atomic<float>* volume        { nullptr };
     std::atomic<float>* active        { nullptr };
     std::atomic<float>* subharmonic   { nullptr }; // index into kSubharmonicValues
+    std::atomic<float>* startNote     { nullptr }; // 0-based offset into pitch pool
 
     std::array<std::atomic<float>*, NUM_RHYTHMS> slotActive { nullptr,nullptr,nullptr,nullptr };
 
