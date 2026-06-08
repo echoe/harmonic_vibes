@@ -22,6 +22,12 @@ MultiheadSequencerAudioProcessor::createParameterLayout()
             "pitch_" + juce::String (i), "Pitch " + juce::String (i + 1),
             0, 127, 36 + i * 3));
 
+    // Per-pitch note length (fraction of slot duration, 0.01–1.0)
+    for (int i = 0; i < NUM_PITCHES; ++i)
+        layout.add (std::make_unique<juce::AudioParameterFloat> (
+            "length_" + juce::String (i), "Length " + juce::String (i + 1),
+            juce::NormalisableRange<float> (0.01f, 1.0f, 0.01f), 0.5f));
+
     // Rhythm slot knobs
     for (int r = 0; r < NUM_RHYTHMS; ++r)
         layout.add (std::make_unique<juce::AudioParameterChoice> (
@@ -76,8 +82,10 @@ MultiheadSequencerAudioProcessor::MultiheadSequencerAudioProcessor()
 {
     for (std::size_t i = 0; i < NUM_PITCHES; ++i)
     {
-        pitchParams[i] = apvts.getRawParameterValue ("pitch_" + juce::String ((int) i));
-        jassert (pitchParams[i] != nullptr);
+        pitchParams[i]  = apvts.getRawParameterValue ("pitch_"  + juce::String ((int) i));
+        lengthParams[i] = apvts.getRawParameterValue ("length_" + juce::String ((int) i));
+        jassert (pitchParams[i]  != nullptr);
+        jassert (lengthParams[i] != nullptr);
     }
     for (std::size_t r = 0; r < NUM_RHYTHMS; ++r)
     {
@@ -293,7 +301,11 @@ void MultiheadSequencerAudioProcessor::processBlock (juce::AudioBuffer<float>& b
 
                     pendingEvents.push_back ({ s, midiNote, vel, (int) ph });
                     head.slotLastNote[r]         = midiNote;
-                    head.slotNoteOffCountdown[r] = sps[r] * 0.45;
+                    const float noteLen = (lengthParams[(std::size_t) head.pitchIndex] != nullptr)
+                                          ? juce::jlimit (0.01f, 1.0f,
+                                                lengthParams[(std::size_t) head.pitchIndex]->load())
+                                          : 0.5f;
+                    head.slotNoteOffCountdown[r] = sps[r] * (double) noteLen;
                 }
             }
         }

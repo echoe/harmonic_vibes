@@ -131,6 +131,7 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     std::array<std::atomic<float>*, NUM_PITCHES> pitchParams  {};
+    std::array<std::atomic<float>*, NUM_PITCHES> lengthParams {};
     std::array<std::atomic<float>*, NUM_RHYTHMS> rhythmParams {};
     std::array<Playhead, NUM_PLAYHEADS>           playheads;
 

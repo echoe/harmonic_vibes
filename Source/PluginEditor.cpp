@@ -57,6 +57,18 @@ PitchStepComponent::PitchStepComponent (int index, juce::AudioProcessorValueTree
 
     pitchAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
         apvts, "pitch_" + juce::String (index), pitchSlider);
+
+    // Note length slider — horizontal, sits below the pitch slider
+    lengthSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    lengthSlider.setRange (0.01, 1.0, 0.01);
+    lengthSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+    lengthSlider.setTooltip ("Note length (fraction of slot duration)");
+    lengthSlider.setColour (juce::Slider::trackColourId,    kHighlight.withAlpha (0.7f));
+    lengthSlider.setColour (juce::Slider::thumbColourId,    TXT());
+    lengthSlider.setColour (juce::Slider::backgroundColourId, ACC());
+    addAndMakeVisible (lengthSlider);
+    lengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        apvts, "length_" + juce::String (index), lengthSlider);
 }
 
 PitchStepComponent::~PitchStepComponent() {}
@@ -98,7 +110,7 @@ void PitchStepComponent::paint (juce::Graphics& g)
             if (activePlayheadMask & (1 << ph))
             {
                 g.setColour (playheadColour (ph));
-                g.fillEllipse (startX - static_cast<float>(col) * (dotR * 2.f + 2.f) - dotR,               
+                g.fillEllipse (startX - static_cast<float>(col) * (dotR * 2.f + 2.f) - dotR,
                                dotY - dotR, dotR * 2.f, dotR * 2.f);
                 ++col;
             }
@@ -109,8 +121,9 @@ void PitchStepComponent::paint (juce::Graphics& g)
 void PitchStepComponent::resized()
 {
     auto b = getLocalBounds().reduced (4);
-    indexLabel.setBounds  (b.removeFromTop (16));
-    pitchSlider.setBounds (b);
+    indexLabel.setBounds    (b.removeFromTop (16));
+    lengthSlider.setBounds  (b.removeFromBottom (14));
+    pitchSlider.setBounds   (b);
 }
 
 //==============================================================================
@@ -794,7 +807,7 @@ void MultiheadSequencerAudioProcessorEditor::resized()
     area.removeFromTop (14);
 
     // 16 pitch sliders
-    auto pitchRow = area.removeFromTop (160);
+    auto pitchRow = area.removeFromTop (180);
     const int stepW = pitchRow.getWidth() / (int) NUM_PITCHES;
     for (std::size_t i = 0; i < NUM_PITCHES; ++i)
         pitchSteps[i]->setBounds (

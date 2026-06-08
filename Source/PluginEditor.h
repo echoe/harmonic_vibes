@@ -82,8 +82,10 @@ private:
     int activePlayheadMask { 0 };
 
     juce::Slider pitchSlider;
+    juce::Slider lengthSlider;
     juce::Label  indexLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> pitchAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lengthAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PitchStepComponent)
 };
